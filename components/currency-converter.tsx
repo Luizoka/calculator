@@ -45,31 +45,61 @@ export default function CurrencyConverter({ language }: CurrencyConverterProps) 
 
   // Initialize with demo data
   useEffect(() => {
-    // Check if we have any cached rates
-    const hasCachedRates = Object.keys(ratesCache.current).length > 0
-
-    if (!hasCachedRates) {
-      fetchExchangeRates("USD")
-    } else {
-      // Use the first available cached currency
-      const firstCachedCurrency = Object.keys(ratesCache.current)[0]
-      const cachedData = ratesCache.current[firstCachedCurrency]
-
-      setAvailableCurrencies(Object.keys(cachedData.data.conversion_rates))
-      setLastFetchTime(cachedData.timestamp)
-    }
-  }, [])
+    const initializeCurrencies = async () => {
+      try {
+        const data = await fetchExchangeRates("USD");
+        if (data && data.conversion_rates) {
+          setAvailableCurrencies(Object.keys(data.conversion_rates));
+        }
+      } catch (error) {
+        console.error("Failed to initialize currencies:", error);
+        
+        // Fallback: use demo data currencies
+        const demoData = getDemoData("USD");
+        setAvailableCurrencies(Object.keys(demoData.conversion_rates));
+      }
+    };
+  
+    initializeCurrencies();
+  }, []);  // Remove the dependency array to ensure this runs only once
 
   // Function to get demo data
   const getDemoData = (baseCurrency: string): ExchangeRates => {
+    // Lista expandida de moedas para demonstração
+    const demoCurrencies = {
+      USD: 1,
+      EUR: 0.85,
+      GBP: 0.75,
+      JPY: 110,
+      BRL: 5.20,
+      AUD: 1.35,
+      CAD: 1.32,
+      CHF: 0.92,
+      CNY: 6.45,
+      INR: 74.5,
+      MXN: 20.2,
+      RUB: 73.4,
+      SGD: 1.36,
+      ZAR: 15.7,
+    };
+  
+    // Função para converter as taxas com base na moeda selecionada
+    const adjustRates = (baseCurr: string): Record<string, number> => {
+      const rates: Record<string, number> = {};
+      const baseRate = demoCurrencies[baseCurr as keyof typeof demoCurrencies] || 1;
+      
+      Object.entries(demoCurrencies).forEach(([currency, rate]) => {
+        rates[currency] = baseRate === 1 ? rate : rate / baseRate;
+      });
+      
+      rates[baseCurr] = 1; // A taxa da própria moeda base é sempre 1
+      
+      return rates;
+    };
+  
     return {
       base_code: baseCurrency,
-      conversion_rates: {
-        USD: 1,
-        EUR: 0.85,
-        GBP: 0.75,
-        JPY: 110,
-      },
+      conversion_rates: adjustRates(baseCurrency),
       time_last_update_unix: Date.now() / 1000,
     };
   };
@@ -119,6 +149,11 @@ export default function CurrencyConverter({ language }: CurrencyConverterProps) 
       }
   
       const data = await response.json();
+
+      if (data && data.conversion_rates) {
+        // Atualizar a lista de moedas disponíveis quando obtemos novos dados
+        setAvailableCurrencies(Object.keys(data.conversion_rates));
+      }
       
       // Atualizar cache com os novos dados
       ratesCache.current[baseCurrency] = {
@@ -137,6 +172,17 @@ export default function CurrencyConverter({ language }: CurrencyConverterProps) 
       // Tentar usar dados de demo/fallback
       const demoData = getDemoData(baseCurrency);
       console.log("Using demo data instead");
+      
+      // Atualizar a lista de moedas disponíveis com dados de demonstração
+      setAvailableCurrencies(Object.keys(demoData.conversion_rates));
+      
+      // Também vamos guardar os dados de demonstração no cache
+      const now = Date.now();
+      ratesCache.current[baseCurrency] = {
+        data: demoData,
+        timestamp: now - (CACHE_EXPIRATION / 2), // Expira em metade do tempo para dados de demonstração
+      };
+      
       return demoData;
     }
   };
