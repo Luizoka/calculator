@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RefreshCw } from "lucide-react"
 import { type Language, t } from "@/lib/translations"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const apiKey = process.env.NEXT_PUBLIC_EXCHANGERATE_API_KEY
 
@@ -286,42 +287,46 @@ export default function CurrencyConverter({ language }: CurrencyConverterProps) 
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="fromCurrency" className="dark:text-gray-200">
-            {t("from", language)}
-          </Label>
-          <Select value={fromCurrency} onValueChange={handleFromCurrencyChange}>
-            <SelectTrigger id="fromCurrency" className="dark:text-gray-100">
-              <SelectValue placeholder={t("selectUnit", language)} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map((currency) => (
-                <SelectItem key={currency} value={currency}>
-                  {currency}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+  <div className="space-y-2">
+    <Label htmlFor="fromCurrency" className="dark:text-gray-200">
+      {t("from", language)}
+    </Label>
+    <Select value={fromCurrency} onValueChange={handleFromCurrencyChange}>
+      <SelectTrigger id="fromCurrency" className="dark:text-gray-100">
+        <SelectValue placeholder={t("selectUnit", language)} />
+      </SelectTrigger>
+      <SelectContent>
+        <ScrollArea className="h-[200px]">
+          {availableCurrencies.map((currency) => (
+            <SelectItem key={currency} value={currency}>
+              {currency}
+            </SelectItem>
+          ))}
+        </ScrollArea>
+      </SelectContent>
+    </Select>
+  </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="toCurrency" className="dark:text-gray-200">
-            {t("to", language)}
-          </Label>
-          <Select value={toCurrency} onValueChange={setToCurrency}>
-            <SelectTrigger id="toCurrency" className="dark:text-gray-100">
-              <SelectValue placeholder={t("selectUnit", language)} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map((currency) => (
-                <SelectItem key={currency} value={currency}>
-                  {currency}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+  <div className="space-y-2">
+    <Label htmlFor="toCurrency" className="dark:text-gray-200">
+      {t("to", language)}
+    </Label>
+    <Select value={toCurrency} onValueChange={setToCurrency}>
+      <SelectTrigger id="toCurrency" className="dark:text-gray-100">
+        <SelectValue placeholder={t("selectUnit", language)} />
+      </SelectTrigger>
+      <SelectContent>
+        <ScrollArea className="h-[200px]">
+          {availableCurrencies.map((currency) => (
+            <SelectItem key={currency} value={currency}>
+              {currency}
+            </SelectItem>
+          ))}
+        </ScrollArea>
+      </SelectContent>
+    </Select>
+  </div>
+</div>
 
       <div className="flex space-x-2">
         <Button
