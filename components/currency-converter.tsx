@@ -60,78 +60,86 @@ export default function CurrencyConverter({ language }: CurrencyConverterProps) 
     }
   }, [])
 
+  // Function to get demo data
+  const getDemoData = (baseCurrency: string): ExchangeRates => {
+    return {
+      base_code: baseCurrency,
+      conversion_rates: {
+        USD: 1,
+        EUR: 0.85,
+        GBP: 0.75,
+        JPY: 110,
+      },
+      time_last_update_unix: Date.now() / 1000,
+    };
+  };
+
   // Fetch exchange rates only when needed
   const fetchExchangeRates = async (baseCurrency: string, force = false) => {
-    // Check if we already have rates for this currency and they're not expired
-    const now = Date.now()
-    const cachedRatesForCurrency = ratesCache.current[baseCurrency]
-
-    if (!force && cachedRatesForCurrency && now - cachedRatesForCurrency.timestamp < CACHE_EXPIRATION) {
-      // Use cached rates
-      setAvailableCurrencies(Object.keys(cachedRatesForCurrency.data.conversion_rates))
-      setLastFetchTime(cachedRatesForCurrency.timestamp)
-      return
-    }
-
-    setIsLoading(true)
-    setError("")
-
+    setIsLoading(true);
+    setError("");
+  
     try {
-      // Use the API key from the URL provided
-      const response = await fetch(`https://v6.exchangerate-api.com/v6/${apiKey}/latest/${baseCurrency}`)
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch exchange rates: ${response.status} ${response.statusText}`)
+      // Verifique se temos taxas em cache para esta moeda base
+      const cachedData = ratesCache.current[baseCurrency];
+      const now = Date.now();
+  
+      // Se temos dados em cache e eles não expiraram ainda (e não estamos forçando uma nova busca)
+      if (
+        !force &&
+        cachedData &&
+        now - cachedData.timestamp < CACHE_EXPIRATION
+      ) {
+        console.log("Using cached exchange rates");
+        setIsLoading(false);
+        return cachedData.data;
       }
-
-      const data = await response.json()
-
-      if (data.result === "success") {
-        // Cache the response
-        ratesCache.current[baseCurrency] = {
-          data: data,
-          timestamp: now,
+  
+      // Verificar se a API key existe
+      if (!process.env.NEXT_PUBLIC_EXCHANGERATE_API_KEY) {
+        console.error("API Key não encontrada");
+        throw new Error("API Key missing");
+      }
+      
+      const response = await fetch(
+        `https://v6.exchangerate-api.com/v6/${process.env.NEXT_PUBLIC_EXCHANGERATE_API_KEY}/latest/${baseCurrency}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          // Adicionar no-cors como fallback se CORS for um problema
+          mode: 'cors',
+          cache: 'no-cache'
         }
-
-        setAvailableCurrencies(Object.keys(data.conversion_rates))
-        setLastFetchTime(now)
-      } else {
-        throw new Error(data.error || "Failed to fetch exchange rates")
+      );
+  
+      if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
       }
-    } catch (err) {
-      console.error("Error fetching exchange rates:", err)
-      setError(t("failedToFetch", language))
-
-      // Use demo data if API fails
-      const demoData = {
-        base_code: baseCurrency,
-        conversion_rates: {
-          USD: baseCurrency === "USD" ? 1 : 1.08,
-          EUR: baseCurrency === "EUR" ? 1 : 0.93,
-          GBP: baseCurrency === "GBP" ? 1 : 0.79,
-          JPY: baseCurrency === "JPY" ? 1 : 157.82,
-          CAD: baseCurrency === "CAD" ? 1 : 1.47,
-          AUD: baseCurrency === "AUD" ? 1 : 1.63,
-          CHF: baseCurrency === "CHF" ? 1 : 0.96,
-          CNY: baseCurrency === "CNY" ? 1 : 7.79,
-          INR: baseCurrency === "INR" ? 1 : 89.97,
-          BRL: baseCurrency === "BRL" ? 1 : 5.42,
-        },
-        time_last_update_unix: Math.floor(now / 1000),
-      }
-
-      // Cache the demo data
+  
+      const data = await response.json();
+      
+      // Atualizar cache com os novos dados
       ratesCache.current[baseCurrency] = {
-        data: demoData,
+        data,
         timestamp: now,
-      }
-
-      setAvailableCurrencies(Object.keys(demoData.conversion_rates))
-      setLastFetchTime(now)
-    } finally {
-      setIsLoading(false)
+      };
+      
+      setLastFetchTime(now);
+      setIsLoading(false);
+      return data;
+    } catch (error) {
+      console.error("Error fetching exchange rates:", error);
+      setError(t("failedToFetch", language));
+      setIsLoading(false);
+      
+      // Tentar usar dados de demo/fallback
+      const demoData = getDemoData(baseCurrency);
+      console.log("Using demo data instead");
+      return demoData;
     }
-  }
+  };
 
   const handleFromCurrencyChange = (currency: string) => {
     setFromCurrency(currency)
